@@ -13,6 +13,11 @@
   .display { font-family: 'Space Grotesk', sans-serif; }
   .mono { font-family: 'IBM Plex Mono', monospace; }
   .dim { color: var(--dim); }
+  .spinner { width:22px; height:22px; border-radius:50%; border:2.5px solid #2A3550; border-top-color:#5B9BD5; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .auth-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; }
+  #userBadge { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .badge-btn { background:transparent; border:1px solid var(--border-soft); color:var(--muted); border-radius:8px; padding:4px 10px; font-size:11px; cursor:pointer; font-family:inherit; }
   .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 100px; }
   .header-row { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px; }
   .header-row h1 { font-size:24px; font-weight:700; margin:0; }
@@ -33,9 +38,13 @@
   .chip-urgent-active { background:#E15554 !important; border-color:#E15554 !important; color:#fff !important; }
   .error-banner { display:flex; align-items:center; gap:8px; background:rgba(225,85,84,0.1); color:#E15554; border:1px solid rgba(225,85,84,0.3); border-radius:10px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
   .loading-wrap { display:flex; justify-content:center; padding:60px 0; }
-  .spinner { width:22px; height:22px; border-radius:50%; border:2.5px solid #2A3550; border-top-color:#5B9BD5; animation:spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
   .empty-card { background:var(--card); border:1px solid var(--border); border-radius:14px; text-align:center; padding:56px 16px; color:var(--muted); font-size:14px; }
+  .block-group { margin-bottom:14px; }
+  .block-group-header { width:100%; display:flex; align-items:center; gap:8px; background:transparent; border:none; padding:6px 2px; cursor:pointer; font-family:inherit; color:var(--text); text-align:left; }
+  .block-group-title { font-family:'Space Grotesk', sans-serif; font-size:14px; font-weight:600; flex:1; }
+  .block-group-count { color:var(--dim); font-size:12px; background:var(--card); border:1px solid var(--border); border-radius:9999px; padding:1px 8px; }
+  .block-group-chevron { color:var(--dim); font-size:12px; width:14px; text-align:center; }
+  .block-group-body { margin-top:6px; }
   .ticket-card { display:block; width:100%; text-align:left; background:var(--card); border:1px solid var(--border); border-left-width:3px; border-left-style:solid; border-radius:14px; padding:0; margin-bottom:12px; cursor:pointer; font-family:inherit; color:inherit; }
   .ticket-card:active { transform: scale(0.99); }
   .ticket-top { display:flex; align-items:center; justify-content:space-between; padding:12px 16px 4px; }
@@ -83,19 +92,43 @@
   .submit-btn:disabled { opacity:0.7; }
   .photo-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:60; display:none; align-items:center; justify-content:center; padding:20px; }
   .photo-overlay img { max-width:100%; max-height:100%; border-radius:12px; }
+  .status-opt-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0 4px; }
+  .status-opt-btn { border:1px solid var(--border-soft); background:transparent; color:var(--muted); border-radius:10px; padding:10px 8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .confirm-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#0F1626; border:1px solid var(--border-soft); border-radius:10px; padding:10px 12px; margin-top:6px; font-size:13px; }
+  .confirm-actions { display:flex; gap:8px; flex-shrink:0; }
+  .confirm-cancel { background:transparent; border:1px solid var(--border-soft); color:var(--muted); border-radius:8px; padding:6px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .confirm-ok { background:#F2A93C; border:none; color:#0B1220; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .confirm-ok:disabled { opacity:0.7; }
+  .user-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .delete-btn { width:100%; border:1px solid #E15554; background:transparent; color:#E15554; border-radius:10px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .note-row { padding:8px 0; border-bottom:1px solid var(--border); }
+  .note-row:last-child { border-bottom:none; }
+  .note-meta { font-size:11px; margin-bottom:2px; }
+  .note-text { font-size:13px; margin:0; line-height:1.4; }
 </style>
 </head>
 <body>
+
+<div id="initialLoading" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
+  <div class="spinner"></div>
+</div>
+
+<div id="authScreen" style="display:none; min-height:100vh; align-items:center; justify-content:center; padding:24px;">
+  <div id="authCard" style="width:100%; max-width:360px;"></div>
+</div>
+
+<div id="appRoot" style="display:none;">
 <div class="wrap">
   <div class="header-row">
     <h1 class="display">Facilities Log</h1>
     <span class="mono dim" id="totalCount">0 total</span>
   </div>
-  <p class="subtitle">Report and track block maintenance issues</p>
+  <div id="userBadge"></div>
+  <p class="subtitle" id="subtitleText">Report and track block maintenance issues</p>
 
   <div class="stats-grid" id="statsGrid"></div>
 
-  <div class="search-wrap">
+  <div class="search-wrap" id="searchWrap">
     <span class="search-icon">🔍</span>
     <input id="searchInput" class="input" placeholder="Search room, block, description...">
   </div>
@@ -114,14 +147,30 @@
   <div id="modalCard" class="modal-card"></div>
 </div>
 
+<div id="detailOverlay" class="modal-overlay" style="display:none;">
+  <div id="detailCard" class="modal-card"></div>
+</div>
+
+<div id="adminOverlay" class="modal-overlay" style="display:none;">
+  <div id="adminCard" class="modal-card"></div>
+</div>
+
 <div id="photoOverlay" class="photo-overlay">
   <img id="photoOverlayImg" src="" alt="issue full size">
+</div>
 </div>
 
 <script src="firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
-import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
+import {
+  getFirestore, collection, doc, addDoc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
+  onSnapshot, query, where, arrayUnion
+} from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js';
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, sendPasswordResetEmail, updateProfile
+} from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js';
 
 // Your Firebase config lives in firebase-config.js, next to this file —
 // nothing to find or edit in here.
@@ -138,9 +187,17 @@ if (!firebaseConfig.apiKey || firebaseConfig.apiKey === 'YOUR_API_KEY') {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 const ticketsCol = collection(db, 'tickets');
+const usersCol = collection(db, 'users');
+
+// A second, isolated Firebase app instance — used ONLY so an admin can create
+// a maintainer's login without being signed out of their own session.
+const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
+const secondaryAuth = getAuth(secondaryApp);
 
 const BLOCK_GROUPS = [
+  { label: 'BPC', options: ['BPC'] },
   { label: 'Numbered Blocks', options: ['1','2','3','4','5','6'] },
   { label: 'Lettered Blocks', options: ['A','B','C','D','E','F'] },
   { label: 'Sekgoma', options: ['Sekgoma 1','Sekgoma 2','Sekgoma 3','Sekgoma 4'] },
@@ -162,7 +219,6 @@ const STATUSES = [
   { id: 'no_access', label: 'No access', color: '#E15554' },
   { id: 'done', label: 'Done', color: '#4FB477' },
 ];
-const STATUS_ORDER = STATUSES.map(s => s.id);
 const ARCHIVE_MS = 7 * 24 * 60 * 60 * 1000;
 
 let tickets = [];
@@ -178,7 +234,22 @@ let saving = false;
 let formCategory = 'electricity';
 let formPhoto = null;
 let formUrgent = false;
+let collapsedBlocks = new Set();
+let detailTicketId = null;
+let pendingStatus = null;
+let pendingDelete = false;
 
+let currentUser = null;
+let currentRole = null;
+let currentName = '';
+let authMode = 'login';
+let authError = '';
+let authBusy = false;
+let unsubscribeTickets = null;
+let adminError = '';
+let adminBusy = false;
+
+function isStaffRole() { return currentRole === 'maintainer' || currentRole === 'admin'; }
 function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -189,24 +260,170 @@ function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
+function friendlyAuthError(e) {
+  const code = e && e.code ? e.code : '';
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'Incorrect email or password.';
+  if (code === 'auth/email-already-in-use') return 'An account with this email already exists — try logging in instead.';
+  if (code === 'auth/weak-password') return 'Password should be at least 6 characters.';
+  if (code === 'auth/invalid-email') return 'That email address looks invalid.';
+  if (code === 'auth/too-many-requests') return 'Too many attempts — wait a moment and try again.';
+  return (e && e.message) ? e.message : 'Something went wrong. Try again.';
+}
 
-onSnapshot(ticketsCol, (snapshot) => {
-  tickets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  loading = false;
-  errorMsg = null;
-  render();
-}, (err) => {
-  console.error(err);
-  errorMsg = 'Could not load the log. Check your Firebase setup and connection.';
-  loading = false;
-  render();
+// ---------- Auth ----------
+onAuthStateChanged(auth, async (user) => {
+  document.getElementById('initialLoading').style.display = 'none';
+  currentUser = user;
+  if (unsubscribeTickets) { unsubscribeTickets(); unsubscribeTickets = null; }
+  if (!user) {
+    currentRole = null;
+    showAuthScreen();
+    return;
+  }
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    let snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        email: user.email,
+        name: user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
+        role: 'reporter',
+        createdAt: new Date().toISOString(),
+      });
+      snap = await getDoc(userRef);
+    }
+    const data = snap.data();
+    currentRole = data.role || 'reporter';
+    currentName = data.name || '';
+  } catch (e) {
+    console.error(e);
+    authError = 'Could not load your account. Try reloading the page.';
+  }
+  showApp();
+  subscribeTickets();
 });
 
+function showAuthScreen() {
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+  renderAuthScreen();
+}
+function showApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+  renderUserBadge();
+}
+
+function renderAuthScreen() {
+  const card = document.getElementById('authCard');
+  const isSignup = authMode === 'signup';
+  card.innerHTML =
+    '<div style="text-align:center;margin-bottom:24px;"><h1 class="display" style="font-size:26px;margin:0 0 4px;">Facilities Log</h1>' +
+    '<p class="dim" style="font-size:13px;margin:0;">' + (isSignup ? 'Create an account to report issues' : 'Log in to continue') + '</p></div>' +
+    '<div class="auth-card">' +
+      (isSignup ? '<input id="authName" class="input" placeholder="Full name" style="margin-bottom:10px;">' : '') +
+      '<input id="authEmail" class="input" placeholder="Email" type="email" style="margin-bottom:10px;">' +
+      '<input id="authPassword" class="input" placeholder="Password" type="password" style="margin-bottom:10px;">' +
+      '<div id="authErrorArea"></div>' +
+      '<button type="button" id="authSubmitBtn" class="submit-btn" style="margin-bottom:10px;">' + (isSignup ? 'Sign up' : 'Log in') + '</button>' +
+      (!isSignup ? '<button type="button" id="forgotBtn" style="background:none;border:none;color:#5B9BD5;font-size:12px;cursor:pointer;font-family:inherit;display:block;margin:0 auto 14px;">Forgot password?</button>' : '<div style="margin-bottom:14px;"></div>') +
+      '<p style="text-align:center;font-size:12px;color:var(--muted);margin:0;">' +
+        (isSignup ? 'Already have an account? ' : 'New here? ') +
+        '<button type="button" id="authToggleBtn" style="background:none;border:none;color:#5B9BD5;font-size:12px;cursor:pointer;font-family:inherit;padding:0;">' + (isSignup ? 'Log in' : 'Sign up') + '</button>' +
+      '</p>' +
+    '</div>';
+
+  document.getElementById('authSubmitBtn').addEventListener('click', handleAuthSubmit);
+  document.getElementById('authToggleBtn').addEventListener('click', () => {
+    authMode = isSignup ? 'login' : 'signup'; authError = ''; renderAuthScreen();
+  });
+  if (!isSignup) document.getElementById('forgotBtn').addEventListener('click', handleForgotPassword);
+  updateAuthError();
+}
+function updateAuthError() {
+  const area = document.getElementById('authErrorArea');
+  if (area) area.innerHTML = authError ? '<p class="form-error">' + escapeHtml(authError) + '</p>' : '';
+  const btn = document.getElementById('authSubmitBtn');
+  if (btn) { btn.disabled = authBusy; btn.textContent = authBusy ? 'Please wait...' : (authMode === 'signup' ? 'Sign up' : 'Log in'); }
+}
+async function handleAuthSubmit() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const isSignup = authMode === 'signup';
+  const name = isSignup ? document.getElementById('authName').value.trim() : '';
+  if (!email || !password || (isSignup && !name)) {
+    authError = 'Please fill in all fields.';
+    updateAuthError();
+    return;
+  }
+  authError = ''; authBusy = true; updateAuthError();
+  try {
+    if (isSignup) {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+  } catch (e) {
+    console.error(e);
+    authError = friendlyAuthError(e);
+    authBusy = false;
+    updateAuthError();
+  }
+}
+async function handleForgotPassword() {
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) { authError = 'Enter your email above first, then tap Forgot password.'; updateAuthError(); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    const area = document.getElementById('authErrorArea');
+    if (area) area.innerHTML = '<p style="color:#4FB477;font-size:12px;">Password reset email sent — check your inbox.</p>';
+  } catch (e) {
+    console.error(e);
+    authError = friendlyAuthError(e);
+    updateAuthError();
+  }
+}
+
+function renderUserBadge() {
+  const el = document.getElementById('userBadge');
+  if (!el || !currentUser) return;
+  const roleLabel = currentRole === 'admin' ? 'Admin' : currentRole === 'maintainer' ? 'Maintainer' : 'Reporter';
+  el.innerHTML =
+    '<span class="dim" style="font-size:11px;">' + escapeHtml(currentName || currentUser.email) + ' · ' + roleLabel + '</span>' +
+    '<span style="margin-left:auto;display:flex;gap:8px;">' +
+      (currentRole === 'admin' ? '<button type="button" id="manageBtn" class="badge-btn">Manage</button>' : '') +
+      '<button type="button" id="logoutBtn" class="badge-btn">Log out</button>' +
+    '</span>';
+  document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+  if (currentRole === 'admin') document.getElementById('manageBtn').addEventListener('click', openAdmin);
+}
+
+// ---------- Tickets ----------
+function subscribeTickets() {
+  loading = true; render();
+  const q = isStaffRole() ? ticketsCol : query(ticketsCol, where('reportedByUid', '==', currentUser.uid));
+  unsubscribeTickets = onSnapshot(q, (snapshot) => {
+    tickets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    loading = false; errorMsg = null;
+    render();
+    if (detailTicketId) buildDetail();
+  }, (err) => {
+    console.error(err);
+    errorMsg = 'Could not load the log. Check your connection.';
+    loading = false;
+    render();
+  });
+}
+
+// Uses createObjectURL (not FileReader.readAsDataURL) so the browser never has to
+// hold a full base64 copy of the original, full-resolution photo in memory while
+// resizing — meaningfully lighter on phones with limited RAM.
 function handlePhotoFile(file) {
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
+  const objectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    try {
       const maxDim = 700;
       let { width, height } = img;
       if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
@@ -216,10 +433,20 @@ function handlePhotoFile(file) {
       canvas.getContext('2d').drawImage(img, 0, 0, width, height);
       formPhoto = canvas.toDataURL('image/jpeg', 0.5);
       updatePhotoArea();
-    };
-    img.src = ev.target.result;
+    } catch (e) {
+      console.error(e);
+      formError = 'Could not process that photo — try a different one.';
+      updateFormError();
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   };
-  reader.readAsDataURL(file);
+  img.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    formError = 'Could not read that photo — try a different one.';
+    updateFormError();
+  };
+  img.src = objectUrl;
 }
 
 async function submitTicket() {
@@ -241,6 +468,7 @@ async function submitTicket() {
     code, block, room, category: formCategory, description, reportedBy, contact,
     urgent: !!formUrgent, photo: formPhoto || null,
     status: 'pending', reportedAt: new Date().toISOString(), resolvedAt: null,
+    reportedByUid: currentUser.uid, notes: [],
   };
   try {
     await addDoc(ticketsCol, ticket);
@@ -250,21 +478,6 @@ async function submitTicket() {
     formError = 'Could not save. Check your connection and try again.';
     saving = false;
     updateFormError();
-  }
-}
-
-async function cycleStatus(ticketId) {
-  const t = tickets.find(x => x.id === ticketId);
-  if (!t) return;
-  const idx = STATUS_ORDER.indexOf(t.status);
-  const newStatus = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
-  const resolvedAt = newStatus === 'done' ? new Date().toISOString() : null;
-  try {
-    await updateDoc(doc(db, 'tickets', ticketId), { status: newStatus, resolvedAt });
-  } catch (e) {
-    console.error(e);
-    errorMsg = 'Status change did not save. Try again.';
-    render();
   }
 }
 
@@ -293,7 +506,7 @@ function buildModal() {
     '</div></div>' +
     '<div><label class="field-label">What\'s wrong?</label><textarea id="formDesc" class="input" rows="2" placeholder="e.g. sockets not working"></textarea></div>' +
     '<div class="form-grid-2">' +
-      '<div><label class="field-label">Reported by</label><input id="formReportedBy" class="input" placeholder="Name"></div>' +
+      '<div><label class="field-label">Reported by</label><input id="formReportedBy" class="input" placeholder="Name" value="' + escapeHtml(currentName || '') + '"></div>' +
       '<div><label class="field-label">Access contact</label><input id="formContact" class="input" placeholder="Phone (optional)"></div>' +
     '</div>' +
     '<div class="form-row-flex">' +
@@ -355,10 +568,16 @@ function updateFormError() {
   if (btn) { btn.disabled = saving; btn.textContent = saving ? 'Saving...' : 'Submit ticket'; }
 }
 
+// ---------- Main render ----------
 function render() {
-  document.getElementById('totalCount').textContent = tickets.length + ' total';
-  renderStats();
-  renderChips();
+  const staff = isStaffRole();
+  document.getElementById('totalCount').textContent = tickets.length + (staff ? ' total' : (tickets.length === 1 ? ' report' : ' reports'));
+  document.getElementById('statsGrid').style.display = staff ? 'grid' : 'none';
+  document.getElementById('searchWrap').style.display = staff ? 'block' : 'none';
+  document.getElementById('statusChips').style.display = staff ? 'flex' : 'none';
+  document.getElementById('categoryChips').style.display = staff ? 'flex' : 'none';
+  document.getElementById('subtitleText').textContent = staff ? 'Report and track block maintenance issues' : "Track the issues you've reported";
+  if (staff) { renderStats(); renderChips(); }
   renderError();
   renderList();
 }
@@ -399,7 +618,50 @@ function renderError() {
   else { el.style.display = 'none'; }
 }
 
+function ticketCardHtml(t) {
+  const cat = categoryMeta(t.category);
+  const st = statusMeta(t.status);
+  const urgentActive = t.urgent && t.status !== 'done';
+  const borderColor = urgentActive ? '#E15554' : st.color;
+  return '<button type="button" class="ticket-card" data-detail-id="' + t.id + '" style="border-left-color:' + borderColor + '">' +
+    '<div class="ticket-top"><div class="ticket-top-left">' +
+      '<span class="punch"></span>' +
+      '<span class="mono ticket-code">' + escapeHtml(t.code || '') + '</span>' +
+      (urgentActive ? '<span class="urgent-tag">🚩 URGENT</span>' : '') +
+    '</div><div class="ticket-top-right">' +
+      (t.photo ? '<span class="thumb" data-photo="' + t.id + '"><img src="' + t.photo + '" alt="issue"></span>' : '') +
+      (Array.isArray(t.notes) && t.notes.length ? '<span class="dim mono" style="font-size:10px;">💬' + t.notes.length + '</span>' : '') +
+      '<span class="cat-icon">' + cat.icon + '</span>' +
+    '</div></div>' +
+    '<div class="ticket-title display">' + escapeHtml(t.block) + ' · Rm ' + escapeHtml(t.room) + '</div>' +
+    '<div class="dash"></div>' +
+    '<div class="ticket-body"><p class="ticket-desc">' + escapeHtml(t.description) + '</p>' +
+      '<div class="ticket-meta"><span class="dim">' + (t.reportedBy ? escapeHtml(t.reportedBy) + ' · ' : '') + formatDate(t.reportedAt) + '</span>' +
+      '<span class="mono status-pill" style="background:' + st.color + '22;color:' + st.color + '">' + st.label.toUpperCase() + '</span></div>' +
+    '</div></button>';
+}
+
+function toggleGroup(block) {
+  if (collapsedBlocks.has(block)) collapsedBlocks.delete(block); else collapsedBlocks.add(block);
+  renderList();
+}
+
 function renderList() {
+  if (isStaffRole()) renderStaffList(); else renderReporterList();
+}
+
+function renderReporterList() {
+  const listArea = document.getElementById('listArea');
+  if (loading) { listArea.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>'; return; }
+  const sorted = [...tickets].sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt));
+  if (sorted.length === 0) {
+    listArea.innerHTML = '<div class="empty-card">You haven\'t reported anything yet. Tap + to report an issue.</div>';
+    return;
+  }
+  listArea.innerHTML = sorted.map(ticketCardHtml).join('');
+}
+
+function renderStaffList() {
   const listArea = document.getElementById('listArea');
   if (loading) { listArea.innerHTML = '<div class="loading-wrap"><div class="spinner"></div></div>'; return; }
 
@@ -428,26 +690,27 @@ function renderList() {
     return;
   }
 
-  listArea.innerHTML = filtered.map(t => {
-    const cat = categoryMeta(t.category);
-    const st = statusMeta(t.status);
-    const urgentActive = t.urgent && t.status !== 'done';
-    const borderColor = urgentActive ? '#E15554' : st.color;
-    return '<button type="button" class="ticket-card" data-cycle-id="' + t.id + '" style="border-left-color:' + borderColor + '">' +
-      '<div class="ticket-top"><div class="ticket-top-left">' +
-        '<span class="punch"></span>' +
-        '<span class="mono ticket-code">' + escapeHtml(t.code || '') + '</span>' +
-        (urgentActive ? '<span class="urgent-tag">🚩 URGENT</span>' : '') +
-      '</div><div class="ticket-top-right">' +
-        (t.photo ? '<span class="thumb" data-photo="' + t.id + '"><img src="' + t.photo + '" alt="issue"></span>' : '') +
-        '<span class="cat-icon">' + cat.icon + '</span>' +
-      '</div></div>' +
-      '<div class="ticket-title display">' + escapeHtml(t.block) + ' · Rm ' + escapeHtml(t.room) + '</div>' +
-      '<div class="dash"></div>' +
-      '<div class="ticket-body"><p class="ticket-desc">' + escapeHtml(t.description) + '</p>' +
-        '<div class="ticket-meta"><span class="dim">' + (t.reportedBy ? escapeHtml(t.reportedBy) + ' · ' : '') + formatDate(t.reportedAt) + '</span>' +
-        '<span class="mono status-pill" style="background:' + st.color + '22;color:' + st.color + '">' + st.label.toUpperCase() + '</span></div>' +
-      '</div></button>';
+  const byBlock = new Map();
+  filtered.forEach(t => {
+    if (!byBlock.has(t.block)) byBlock.set(t.block, []);
+    byBlock.get(t.block).push(t);
+  });
+  const knownOrder = BLOCKS.filter(b => byBlock.has(b));
+  const extras = [...byBlock.keys()].filter(b => !BLOCKS.includes(b)).sort();
+  const orderedBlockNames = knownOrder.concat(extras);
+
+  listArea.innerHTML = orderedBlockNames.map(block => {
+    const group = byBlock.get(block);
+    const collapsed = collapsedBlocks.has(block);
+    const urgentInGroup = group.some(t => t.urgent && t.status !== 'done');
+    return '<div class="block-group">' +
+      '<button type="button" class="block-group-header" data-group-toggle="' + escapeHtml(block) + '">' +
+        '<span class="block-group-title">' + (urgentInGroup ? '🚩 ' : '') + escapeHtml(block) + '</span>' +
+        '<span class="block-group-count">' + group.length + '</span>' +
+        '<span class="block-group-chevron">' + (collapsed ? '▸' : '▾') + '</span>' +
+      '</button>' +
+      (collapsed ? '' : '<div class="block-group-body">' + group.map(ticketCardHtml).join('') + '</div>') +
+    '</div>';
   }).join('');
 }
 
@@ -456,6 +719,310 @@ function openPhotoOverlay(url) {
   document.getElementById('photoOverlay').style.display = 'flex';
 }
 
+// ---------- Ticket detail ----------
+function notesHtml(t) {
+  const notes = Array.isArray(t.notes) ? t.notes : [];
+  if (notes.length === 0) return '<p class="dim" style="font-size:12px;margin:4px 0 8px;">No notes yet.</p>';
+  return notes.map(n =>
+    '<div class="note-row"><div class="note-meta"><strong>' + escapeHtml(n.byName || 'Someone') + '</strong>' +
+    '<span class="dim"> · ' + escapeHtml(n.byRole || '') + ' · ' + formatDate(n.at) + '</span></div>' +
+    '<p class="note-text">' + escapeHtml(n.text) + '</p></div>'
+  ).join('');
+}
+
+function openDetail(ticketId) {
+  detailTicketId = ticketId;
+  pendingStatus = null;
+  pendingDelete = false;
+  document.getElementById('detailOverlay').style.display = 'flex';
+  buildDetail();
+}
+function closeDetail() {
+  detailTicketId = null;
+  pendingStatus = null;
+  pendingDelete = false;
+  document.getElementById('detailOverlay').style.display = 'none';
+}
+function buildDetail() {
+  const t = tickets.find(x => x.id === detailTicketId);
+  if (!t) { closeDetail(); return; }
+  const cat = categoryMeta(t.category);
+  const st = statusMeta(t.status);
+  const urgentActive = t.urgent && t.status !== 'done';
+  const staff = isStaffRole();
+  const isOwner = currentUser && t.reportedByUid === currentUser.uid;
+  const canDelete = !staff && isOwner && t.status === 'pending';
+  const card = document.getElementById('detailCard');
+  card.innerHTML =
+    '<div class="modal-header"><h2 class="display mono" style="font-size:15px;">' + escapeHtml(t.code || '') + '</h2><button type="button" id="closeDetailBtn" class="icon-btn">✕</button></div>' +
+    (urgentActive ? '<div class="urgent-tag" style="margin-bottom:8px;">🚩 URGENT</div>' : '') +
+    '<div class="ticket-title display" style="padding:0 0 8px;">' + escapeHtml(t.block) + ' · Rm ' + escapeHtml(t.room) + '</div>' +
+    '<div style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;margin-bottom:12px;">' + cat.icon + ' ' + escapeHtml(cat.label) + '</div>' +
+    '<p style="font-size:14px;line-height:1.5;margin:0 0 12px;">' + escapeHtml(t.description) + '</p>' +
+    (t.photo ? '<img src="' + t.photo + '" alt="issue" id="detailPhotoImg" style="width:100%;border-radius:10px;margin-bottom:12px;cursor:pointer;display:block;">' : '') +
+    '<div style="font-size:12px;color:var(--dim);margin-bottom:4px;">' + (t.reportedBy ? escapeHtml(t.reportedBy) + ' · ' : '') + formatDate(t.reportedAt) + '</div>' +
+    (t.contact ? '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Access contact: <a href="tel:' + escapeHtml(t.contact) + '" style="color:#5B9BD5;">' + escapeHtml(t.contact) + '</a></div>' : '') +
+    '<div class="dash" style="margin:14px 0 4px;"></div>' +
+    (staff
+      ? ('<label class="field-label">Update status</label>' +
+         '<div class="status-opt-grid" id="statusGridDetail">' +
+           STATUSES.map(s => '<button type="button" class="status-opt-btn" data-status="' + s.id + '">' + s.label + '</button>').join('') +
+         '</div>' +
+         '<div id="statusConfirmArea"></div>')
+      : ('<label class="field-label">Status</label>' +
+         '<div style="margin-top:6px;"><span class="mono status-pill" style="background:' + st.color + '22;color:' + st.color + ';padding:4px 10px;font-size:11px;">' + st.label.toUpperCase() + '</span></div>')
+    ) +
+    '<div class="dash" style="margin:14px 0 8px;"></div>' +
+    '<label class="field-label">Notes</label>' +
+    '<div id="notesListArea" style="margin-top:4px;">' + notesHtml(t) + '</div>' +
+    '<textarea id="newNoteText" class="input" rows="2" placeholder="Add a note..." style="margin-top:8px;"></textarea>' +
+    '<div id="noteErrorArea"></div>' +
+    '<button type="button" id="postNoteBtn" class="submit-btn" style="margin-top:6px;background:#5B9BD5;">Post note</button>' +
+    (canDelete
+      ? ('<div class="dash" style="margin:16px 0 10px;"></div>' +
+         '<button type="button" id="deleteTicketBtn" class="delete-btn">Delete this report</button>' +
+         '<div id="deleteConfirmArea"></div>')
+      : ''
+    );
+
+  document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
+  if (t.photo) document.getElementById('detailPhotoImg').addEventListener('click', () => openPhotoOverlay(t.photo));
+  if (staff) {
+    document.getElementById('statusGridDetail').addEventListener('click', (e) => {
+      const btn = e.target.closest('.status-opt-btn');
+      if (!btn) return;
+      selectPendingStatus(btn.dataset.status);
+    });
+    updateDetailConfirmArea();
+  }
+  document.getElementById('postNoteBtn').addEventListener('click', postNote);
+  if (canDelete) {
+    document.getElementById('deleteTicketBtn').addEventListener('click', () => { pendingDelete = true; updateDeleteConfirmArea(); });
+    updateDeleteConfirmArea();
+  }
+}
+function selectPendingStatus(newStatus) {
+  const t = tickets.find(x => x.id === detailTicketId);
+  if (!t || newStatus === t.status) { pendingStatus = null; updateDetailConfirmArea(); return; }
+  pendingStatus = newStatus;
+  updateDetailConfirmArea();
+}
+function cancelPendingStatus() { pendingStatus = null; updateDetailConfirmArea(); }
+async function confirmPendingStatus() {
+  const t = tickets.find(x => x.id === detailTicketId);
+  if (!t || !pendingStatus) return;
+  const newStatus = pendingStatus;
+  const resolvedAt = newStatus === 'done' ? new Date().toISOString() : null;
+  const btn = document.getElementById('confirmStatusBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    await updateDoc(doc(db, 'tickets', t.id), { status: newStatus, resolvedAt });
+    pendingStatus = null;
+    updateDetailConfirmArea();
+  } catch (e) {
+    console.error(e);
+    errorMsg = 'Status change did not save. Try again.';
+    pendingStatus = null;
+    updateDetailConfirmArea();
+    render();
+  }
+}
+function updateDetailConfirmArea() {
+  const area = document.getElementById('statusConfirmArea');
+  if (!area) return;
+  if (pendingStatus) {
+    const meta = statusMeta(pendingStatus);
+    area.innerHTML = '<div class="confirm-bar"><span>Mark as <strong style="color:' + meta.color + '">' + meta.label + '</strong>?</span>' +
+      '<div class="confirm-actions"><button type="button" id="cancelStatusBtn" class="confirm-cancel">Cancel</button>' +
+      '<button type="button" id="confirmStatusBtn" class="confirm-ok">Confirm</button></div></div>';
+    document.getElementById('cancelStatusBtn').addEventListener('click', cancelPendingStatus);
+    document.getElementById('confirmStatusBtn').addEventListener('click', confirmPendingStatus);
+  } else {
+    area.innerHTML = '';
+  }
+  const t = tickets.find(x => x.id === detailTicketId);
+  document.querySelectorAll('#statusGridDetail .status-opt-btn').forEach(btn => {
+    const meta = statusMeta(btn.dataset.status);
+    const isCurrent = t && btn.dataset.status === t.status;
+    const isPending = btn.dataset.status === pendingStatus;
+    if (isPending) { btn.style.borderColor = meta.color; btn.style.background = meta.color; btn.style.color = '#0B1220'; }
+    else if (isCurrent) { btn.style.borderColor = meta.color; btn.style.background = meta.color + '22'; btn.style.color = meta.color; }
+    else { btn.style.borderColor = '#2A3550'; btn.style.background = 'transparent'; btn.style.color = '#8B96AD'; }
+  });
+}
+async function postNote() {
+  const t = tickets.find(x => x.id === detailTicketId);
+  if (!t) return;
+  const textEl = document.getElementById('newNoteText');
+  const text = textEl.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('postNoteBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting...'; }
+  const note = {
+    text,
+    byName: currentName || (currentUser && currentUser.email) || 'Someone',
+    byRole: currentRole || 'reporter',
+    at: new Date().toISOString(),
+  };
+  try {
+    await updateDoc(doc(db, 'tickets', t.id), { notes: arrayUnion(note) });
+    textEl.value = '';
+  } catch (e) {
+    console.error(e);
+    const area = document.getElementById('noteErrorArea');
+    if (area) area.innerHTML = '<p class="form-error">Could not post that note. Try again.</p>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Post note'; }
+  }
+}
+function updateDeleteConfirmArea() {
+  const area = document.getElementById('deleteConfirmArea');
+  if (!area) return;
+  if (pendingDelete) {
+    area.innerHTML = '<div class="confirm-bar"><span>Delete this report?</span>' +
+      '<div class="confirm-actions"><button type="button" id="cancelDeleteBtn" class="confirm-cancel">Cancel</button>' +
+      '<button type="button" id="confirmDeleteBtn" class="confirm-ok" style="background:#E15554;">Delete</button></div></div>';
+    document.getElementById('cancelDeleteBtn').addEventListener('click', () => { pendingDelete = false; updateDeleteConfirmArea(); });
+    document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteTicket);
+  } else {
+    area.innerHTML = '';
+  }
+}
+async function confirmDeleteTicket() {
+  const t = tickets.find(x => x.id === detailTicketId);
+  if (!t) return;
+  const btn = document.getElementById('confirmDeleteBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+  try {
+    await deleteDoc(doc(db, 'tickets', t.id));
+    closeDetail();
+  } catch (e) {
+    console.error(e);
+    errorMsg = 'Could not delete. Try again.';
+    pendingDelete = false;
+    updateDeleteConfirmArea();
+    render();
+  }
+}
+
+// ---------- Admin: manage maintainers + export ----------
+function openAdmin() {
+  adminError = ''; adminBusy = false;
+  document.getElementById('adminOverlay').style.display = 'flex';
+  buildAdmin();
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').style.display = 'none';
+}
+function buildAdmin() {
+  const card = document.getElementById('adminCard');
+  card.innerHTML =
+    '<div class="modal-header"><h2 class="display">Manage</h2><button type="button" id="closeAdminBtn" class="icon-btn">✕</button></div>' +
+    '<label class="field-label">Add a new maintainer</label>' +
+    '<input id="newMaintName" class="input" placeholder="Full name" style="margin:6px 0;">' +
+    '<input id="newMaintEmail" class="input" placeholder="Email" style="margin-bottom:6px;">' +
+    '<input id="newMaintPassword" class="input" placeholder="Temporary password (min 6 characters)" style="margin-bottom:8px;">' +
+    '<div id="adminErrorArea"></div>' +
+    '<button type="button" id="createMaintBtn" class="submit-btn" style="margin-bottom:12px;">Create maintainer account</button>' +
+    '<p style="font-size:11px;color:var(--dim);margin:0 0 16px;">Share the email and temporary password with them directly. They can log in right away and change their password after.</p>' +
+    '<div class="dash" style="margin-bottom:14px;"></div>' +
+    '<label class="field-label">Export tickets</label>' +
+    '<select id="exportBlockSelect" class="input" style="margin:6px 0;">' +
+      '<option value="__all__">All blocks</option>' +
+      BLOCK_GROUPS.map(g => '<optgroup label="' + escapeHtml(g.label) + '">' + g.options.map(b => '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + '</option>').join('') + '</optgroup>').join('') +
+    '</select>' +
+    '<button type="button" id="exportBtn" class="submit-btn" style="background:#5B9BD5;margin-bottom:16px;">Download CSV</button>' +
+    '<div class="dash" style="margin-bottom:12px;"></div>' +
+    '<label class="field-label">All accounts</label>' +
+    '<div id="userListArea" style="margin-top:8px;">Loading…</div>';
+
+  document.getElementById('closeAdminBtn').addEventListener('click', closeAdmin);
+  document.getElementById('createMaintBtn').addEventListener('click', handleCreateMaintainer);
+  document.getElementById('exportBtn').addEventListener('click', handleExport);
+  loadUserList();
+  updateAdminError();
+}
+function updateAdminError() {
+  const area = document.getElementById('adminErrorArea');
+  if (area) area.innerHTML = adminError ? '<p class="form-error">' + escapeHtml(adminError) + '</p>' : '';
+  const btn = document.getElementById('createMaintBtn');
+  if (btn) { btn.disabled = adminBusy; btn.textContent = adminBusy ? 'Creating...' : 'Create maintainer account'; }
+}
+async function handleCreateMaintainer() {
+  const name = document.getElementById('newMaintName').value.trim();
+  const email = document.getElementById('newMaintEmail').value.trim();
+  const password = document.getElementById('newMaintPassword').value;
+  if (!name || !email || !password || password.length < 6) {
+    adminError = 'Fill in name, email, and a password of at least 6 characters.';
+    updateAdminError();
+    return;
+  }
+  adminError = ''; adminBusy = true; updateAdminError();
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    await updateProfile(cred.user, { displayName: name });
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      email, name, role: 'maintainer', createdAt: new Date().toISOString(), createdBy: currentUser.uid,
+    });
+    await signOut(secondaryAuth);
+    document.getElementById('newMaintName').value = '';
+    document.getElementById('newMaintEmail').value = '';
+    document.getElementById('newMaintPassword').value = '';
+    adminBusy = false;
+    updateAdminError();
+    loadUserList();
+  } catch (e) {
+    console.error(e);
+    adminError = friendlyAuthError(e);
+    adminBusy = false;
+    updateAdminError();
+  }
+}
+async function loadUserList() {
+  const area = document.getElementById('userListArea');
+  if (!area) return;
+  try {
+    const snap = await getDocs(usersCol);
+    const rankOf = { admin: 0, maintainer: 1, reporter: 2 };
+    const rows = snap.docs.map(d => d.data()).sort((a, b) => (rankOf[a.role] ?? 3) - (rankOf[b.role] ?? 3));
+    area.innerHTML = rows.map(u =>
+      '<div class="user-row"><span>' + escapeHtml(u.name || u.email) + '<br><span class="dim" style="font-size:11px;">' + escapeHtml(u.email) + '</span></span>' +
+      '<span class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(u.role) + '</span></div>'
+    ).join('') || '<p class="dim" style="font-size:12px;">No accounts yet.</p>';
+  } catch (e) {
+    console.error(e);
+    area.innerHTML = '<p class="form-error">Could not load accounts.</p>';
+  }
+}
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function ticketsToCsv(list) {
+  const headers = ['Code','Block','Room','Category','Description','Status','Urgent','Reported By','Reported At','Resolved At','Notes'];
+  const rows = list.map(t => [
+    t.code, t.block, t.room, categoryMeta(t.category).label, t.description,
+    statusMeta(t.status).label, t.urgent ? 'Yes' : 'No', t.reportedBy, t.reportedAt, t.resolvedAt || '',
+    (Array.isArray(t.notes) ? t.notes.map(n => (n.byName + ': ' + n.text)).join(' | ') : ''),
+  ].map(csvEscape).join(','));
+  return [headers.join(','), ...rows].join('\r\n');
+}
+function handleExport() {
+  const sel = document.getElementById('exportBlockSelect').value;
+  const list = sel === '__all__' ? tickets : tickets.filter(t => t.block === sel);
+  const csv = ticketsToCsv(list);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'facilities-log-' + (sel === '__all__' ? 'all' : sel.replace(/\s+/g, '-').toLowerCase()) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------- Event delegation ----------
 document.getElementById('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value; renderList(); });
 document.getElementById('statusChips').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-filter-status]');
@@ -476,18 +1043,16 @@ document.getElementById('listArea').addEventListener('click', (e) => {
     if (t && t.photo) openPhotoOverlay(t.photo);
     return;
   }
-  const cardEl = e.target.closest('[data-cycle-id]');
-  if (cardEl) cycleStatus(cardEl.dataset.cycleId);
+  const groupEl = e.target.closest('[data-group-toggle]');
+  if (groupEl) { toggleGroup(groupEl.dataset.groupToggle); return; }
+  const cardEl = e.target.closest('[data-detail-id]');
+  if (cardEl) openDetail(cardEl.dataset.detailId);
 });
 document.getElementById('fabBtn').addEventListener('click', openForm);
-document.getElementById('modalOverlay').addEventListener('click', (e) => {
-  if (e.target.id === 'modalOverlay') closeForm();
-});
-document.getElementById('photoOverlay').addEventListener('click', () => {
-  document.getElementById('photoOverlay').style.display = 'none';
-});
-
-render();
+document.getElementById('modalOverlay').addEventListener('click', (e) => { if (e.target.id === 'modalOverlay') closeForm(); });
+document.getElementById('detailOverlay').addEventListener('click', (e) => { if (e.target.id === 'detailOverlay') closeDetail(); });
+document.getElementById('adminOverlay').addEventListener('click', (e) => { if (e.target.id === 'adminOverlay') closeAdmin(); });
+document.getElementById('photoOverlay').addEventListener('click', () => { document.getElementById('photoOverlay').style.display = 'none'; });
 </script>
 </body>
 </html>
