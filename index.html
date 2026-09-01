@@ -281,8 +281,11 @@ let adminError = '';
 let adminBusy = false;
 let publicMode = false;
 let editingUserId = null;
+let editDraft = null;
+let lastLoadedUsers = [];
 let newStaffRole = 'maintainer';
 let newStaffSpecialty = 'all';
+let lastStaffCreated = null;
 
 function isAdminRole() { return currentRole === 'admin'; }
 function isMaintainerRole() { return currentRole === 'maintainer'; }
@@ -1023,7 +1026,7 @@ async function confirmDeleteTicket() {
 
 // ---------- Admin: manage staff accounts ----------
 function openAdmin() {
-  adminError = ''; adminBusy = false; editingUserId = null; newStaffRole = 'maintainer'; newStaffSpecialty = 'all';
+  adminError = ''; adminBusy = false; editingUserId = null; editDraft = null; newStaffRole = 'maintainer'; newStaffSpecialty = 'all'; lastStaffCreated = null;
   document.getElementById('adminOverlay').style.display = 'flex';
   buildAdmin();
 }
@@ -1051,9 +1054,10 @@ function buildAdmin() {
     '</div>' +
     '<div id="adminErrorArea"></div>' +
     '<button type="button" id="createStaffBtn" class="submit-btn" style="margin-bottom:12px;">Create account</button>' +
-    '<p style="font-size:11px;color:var(--dim);margin:0 0 16px;">Share the email and temporary password with them directly. A maintainer with a specific specialty only ever sees tickets in that category — a supervisor sees everything but can\'t change any ticket\'s status.</p>' +
+    '<p style="font-size:11px;color:var(--dim);margin:0 0 12px;">There\'s no automatic email — after creating an account, copy the message below and send it yourself (WhatsApp, email, in person).</p>' +
+    '<div id="staffCreatedArea"></div>' +
     '<div class="dash" style="margin-bottom:12px;"></div>' +
-    '<label class="field-label">All accounts — tap a reporter to set their RA block(s), or a maintainer to change their specialty</label>' +
+    '<label class="field-label">All accounts — tap any account to change their role, specialty, or RA block(s)</label>' +
     '<div id="userListArea" style="margin-top:8px;">Loading…</div>';
 
   document.getElementById('closeAdminBtn').addEventListener('click', closeAdmin);
@@ -1073,11 +1077,23 @@ function buildAdmin() {
   });
   document.getElementById('userListArea').addEventListener('click', (e) => {
     const editBtn = e.target.closest('[data-edit-user]');
-    if (editBtn) { editingUserId = (editingUserId === editBtn.dataset.editUser) ? null : editBtn.dataset.editUser; loadUserList(); return; }
-    const specBtn = e.target.closest('[data-specialty-btn]');
-    if (specBtn) { saveSpecialty(specBtn.dataset.uid, specBtn.dataset.specialty); return; }
-    const blocksBtn = e.target.closest('[data-save-blocks-btn]');
-    if (blocksBtn) { saveAssignedBlocks(blocksBtn.dataset.uid); return; }
+    if (editBtn) {
+      const uid = editBtn.dataset.editUser;
+      if (editingUserId === uid) { editingUserId = null; editDraft = null; }
+      else {
+        const u = lastLoadedUsers.find(x => x.id === uid);
+        editingUserId = uid;
+        editDraft = u ? { role: u.role, specialty: u.specialty || 'all', assignedBlocks: [...(u.assignedBlocks || [])] } : { role: 'reporter', specialty: 'all', assignedBlocks: [] };
+      }
+      renderUserListFromCache();
+      return;
+    }
+    const roleBtn = e.target.closest('[data-role-opt]');
+    if (roleBtn) { editDraft.role = roleBtn.dataset.roleOpt; renderUserListFromCache(); return; }
+    const specBtn = e.target.closest('[data-specialty-opt]');
+    if (specBtn) { editDraft.specialty = specBtn.dataset.specialty; renderUserListFromCache(); return; }
+    const saveBtn = e.target.closest('[data-save-user-btn]');
+    if (saveBtn) { saveUserChanges(saveBtn.dataset.uid); return; }
   });
   loadUserList();
   updateAdminError();
@@ -1087,6 +1103,42 @@ function updateAdminError() {
   if (area) area.innerHTML = adminError ? '<p class="form-error">' + escapeHtml(adminError) + '</p>' : '';
   const btn = document.getElementById('createStaffBtn');
   if (btn) { btn.disabled = adminBusy; btn.textContent = adminBusy ? 'Creating...' : 'Create account'; }
+}
+function roleBlurb(role, specialty) {
+  if (role === 'maintainer') {
+    return (specialty && specialty !== 'all')
+      ? 'You\'ll see and update maintenance tickets for ' + specialtyLabel(specialty) + ' issues only.'
+      : 'You\'ll see and update maintenance tickets across all categories.';
+  }
+  if (role === 'supervisor') return 'You\'ll see every ticket for oversight, plus the Summary panel — you can\'t change ticket statuses.';
+  return '';
+}
+function buildStaffMessage(name, email, password, role, specialty) {
+  const roleLabel = role === 'maintainer' ? 'Maintainer' + (specialty && specialty !== 'all' ? ' (' + specialtyLabel(specialty) + ')' : ' (all categories)') : 'Supervisor';
+  return 'Hi ' + name + ', you\'ve been added to the BIUST Maintenance & Facilities Log as a ' + roleLabel + '.\n' +
+    'Login: https://yunghit.github.io/Biust-Maintenance-Log/\n' +
+    'Email: ' + email + '\n' +
+    'Temporary password: ' + password + '\n' +
+    roleBlurb(role, specialty) + '\n' +
+    'Please change your password after logging in (Forgot password on the login screen works even for a first change).';
+}
+function updateStaffCreatedArea() {
+  const area = document.getElementById('staffCreatedArea');
+  if (!area) return;
+  if (!lastStaffCreated) { area.innerHTML = ''; return; }
+  area.innerHTML =
+    '<textarea id="staffMsgText" class="input" rows="6" readonly style="margin-bottom:8px;font-size:12px;">' + escapeHtml(lastStaffCreated) + '</textarea>' +
+    '<button type="button" id="copyStaffMsgBtn" class="submit-btn" style="background:#5B9BD5;margin-bottom:16px;">Copy message</button>';
+  document.getElementById('copyStaffMsgBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('copyStaffMsgBtn');
+    try {
+      await navigator.clipboard.writeText(lastStaffCreated);
+      if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { if (btn) btn.textContent = 'Copy message'; }, 1500); }
+    } catch (e) {
+      const ta = document.getElementById('staffMsgText');
+      if (ta) { ta.focus(); ta.select(); }
+    }
+  });
 }
 async function handleCreateStaff() {
   const name = document.getElementById('newStaffName').value.trim();
@@ -1105,11 +1157,13 @@ async function handleCreateStaff() {
     if (newStaffRole === 'maintainer') userDoc.specialty = newStaffSpecialty;
     await setDoc(doc(db, 'users', cred.user.uid), userDoc);
     await signOut(secondaryAuth);
+    lastStaffCreated = buildStaffMessage(name, email, password, newStaffRole, newStaffSpecialty);
     document.getElementById('newStaffName').value = '';
     document.getElementById('newStaffEmail').value = '';
     document.getElementById('newStaffPassword').value = '';
     adminBusy = false;
     updateAdminError();
+    updateStaffCreatedArea();
     loadUserList();
   } catch (e) {
     console.error(e);
@@ -1118,56 +1172,73 @@ async function handleCreateStaff() {
     updateAdminError();
   }
 }
+const ROLE_OPTIONS = [
+  { id: 'reporter', label: 'Reporter' },
+  { id: 'maintainer', label: 'Maintainer' },
+  { id: 'supervisor', label: 'Supervisor' },
+  { id: 'admin', label: 'Admin' },
+];
 function renderUserRow(u) {
   const extra = u.role === 'maintainer'
     ? specialtyLabel(u.specialty || 'all')
     : (u.role === 'reporter' && Array.isArray(u.assignedBlocks) && u.assignedBlocks.length)
       ? 'RA: ' + u.assignedBlocks.join(', ')
       : '';
-  const editable = u.role === 'maintainer' || u.role === 'reporter';
   const isEditing = editingUserId === u.id;
   let html = '<div class="user-row-wrap">' +
-    '<button type="button" class="user-row"' + (editable ? ' data-edit-user="' + u.id + '"' : '') + ' style="cursor:' + (editable ? 'pointer' : 'default') + ';">' +
+    '<button type="button" class="user-row" data-edit-user="' + u.id + '">' +
       '<span>' + escapeHtml(u.name || u.email) + '<br><span class="dim" style="font-size:11px;">' + escapeHtml(u.email) + (extra ? ' · ' + escapeHtml(extra) : '') + '</span></span>' +
-      '<span class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(u.role) + (editable ? (isEditing ? ' ▾' : ' ▸') : '') + '</span>' +
+      '<span class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(u.role) + (isEditing ? ' ▾' : ' ▸') + '</span>' +
     '</button>';
-  if (isEditing && u.role === 'maintainer') {
-    html += '<div class="user-editor"><label class="field-label">Specialty</label><div class="cat-grid" style="grid-template-columns:repeat(5,1fr);">' +
-      SPECIALTIES.map(s => '<button type="button" class="cat-btn' + ((u.specialty||'all') === s.id ? ' cat-btn-active' : '') + '" data-specialty-btn data-uid="' + u.id + '" data-specialty="' + s.id + '"><span class="cat-btn-label">' + escapeHtml(s.label.split(' ')[0]) + '</span></button>').join('') +
-      '</div></div>';
-  }
-  if (isEditing && u.role === 'reporter') {
-    html += '<div class="user-editor"><label class="field-label">RA for which residential block(s)?</label>' +
-      '<div class="block-check-grid" id="blockCheckGrid-' + u.id + '">' +
-        RESIDENTIAL_BLOCKS.map(b => '<label class="block-check"><input type="checkbox" value="' + escapeHtml(b) + '"' + ((u.assignedBlocks||[]).includes(b) ? ' checked' : '') + '> ' + escapeHtml(b) + '</label>').join('') +
-      '</div>' +
-      '<button type="button" class="submit-btn" data-save-blocks-btn data-uid="' + u.id + '" style="margin-top:8px;background:#5B9BD5;">Save blocks</button></div>';
-  }
+  if (isEditing) html += renderUserEditor(u);
   html += '</div>';
   return html;
 }
-async function saveSpecialty(uid, specialty) {
-  try {
-    await updateDoc(doc(db, 'users', uid), { specialty });
-    editingUserId = null;
-    loadUserList();
-  } catch (e) {
-    console.error(e);
-    adminError = 'Could not save specialty. Try again.';
-    updateAdminError();
+function renderUserEditor(u) {
+  const draft = (editingUserId === u.id && editDraft) ? editDraft : { role: u.role, specialty: u.specialty || 'all', assignedBlocks: u.assignedBlocks || [] };
+  let html = '<div class="user-editor"><label class="field-label">Role</label>' +
+    '<div class="cat-grid" style="grid-template-columns:repeat(4,1fr);">' +
+      ROLE_OPTIONS.map(r => '<button type="button" class="cat-btn' + (draft.role === r.id ? ' cat-btn-active' : '') + '" data-role-opt="' + r.id + '" data-uid="' + u.id + '"><span class="cat-btn-label">' + r.label + '</span></button>').join('') +
+    '</div>';
+  if (draft.role === 'maintainer') {
+    html += '<label class="field-label" style="margin-top:8px;">Specialty</label><div class="cat-grid" style="grid-template-columns:repeat(5,1fr);">' +
+      SPECIALTIES.map(s => '<button type="button" class="cat-btn' + (draft.specialty === s.id ? ' cat-btn-active' : '') + '" data-specialty-opt data-uid="' + u.id + '" data-specialty="' + s.id + '"><span class="cat-btn-label">' + escapeHtml(s.label.split(' ')[0]) + '</span></button>').join('') +
+    '</div>';
   }
+  if (draft.role === 'reporter') {
+    html += '<label class="field-label" style="margin-top:8px;">RA for which residential block(s)?</label>' +
+      '<div class="block-check-grid" id="blockCheckGrid-' + u.id + '">' +
+        RESIDENTIAL_BLOCKS.map(b => '<label class="block-check"><input type="checkbox" value="' + escapeHtml(b) + '"' + ((draft.assignedBlocks || []).includes(b) ? ' checked' : '') + '> ' + escapeHtml(b) + '</label>').join('') +
+      '</div>';
+  }
+  html += '<button type="button" class="submit-btn" data-save-user-btn data-uid="' + u.id + '" style="margin-top:8px;background:#5B9BD5;">Save changes</button></div>';
+  return html;
 }
-async function saveAssignedBlocks(uid) {
-  const grid = document.getElementById('blockCheckGrid-' + uid);
-  const checked = grid ? [...grid.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value) : [];
+function renderUserListFromCache() {
+  const area = document.getElementById('userListArea');
+  if (!area) return;
+  area.innerHTML = lastLoadedUsers.map(renderUserRow).join('') || '<p class="dim" style="font-size:12px;">No accounts yet.</p>';
+}
+async function saveUserChanges(uid) {
+  if (!editDraft) return;
+  const btn = document.querySelector('[data-save-user-btn][data-uid="' + uid + '"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  const update = { role: editDraft.role };
+  if (editDraft.role === 'maintainer') update.specialty = editDraft.specialty || 'all';
+  if (editDraft.role === 'reporter') {
+    const grid = document.getElementById('blockCheckGrid-' + uid);
+    update.assignedBlocks = grid ? [...grid.querySelectorAll('input[type=checkbox]:checked')].map(cb => cb.value) : [];
+  }
   try {
-    await updateDoc(doc(db, 'users', uid), { assignedBlocks: checked });
+    await updateDoc(doc(db, 'users', uid), update);
     editingUserId = null;
+    editDraft = null;
     loadUserList();
   } catch (e) {
     console.error(e);
-    adminError = 'Could not save blocks. Try again.';
+    adminError = 'Could not save changes. Try again.';
     updateAdminError();
+    if (btn) { btn.disabled = false; btn.textContent = 'Save changes'; }
   }
 }
 async function loadUserList() {
@@ -1177,6 +1248,7 @@ async function loadUserList() {
     const snap = await getDocs(usersCol);
     const rankOf = { admin: 0, supervisor: 1, maintainer: 2, reporter: 3 };
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (rankOf[a.role] ?? 4) - (rankOf[b.role] ?? 4));
+    lastLoadedUsers = rows;
     area.innerHTML = rows.map(renderUserRow).join('') || '<p class="dim" style="font-size:12px;">No accounts yet.</p>';
   } catch (e) {
     console.error(e);
