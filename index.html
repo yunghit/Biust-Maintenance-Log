@@ -22,7 +22,11 @@
   .spinner { width:22px; height:22px; border-radius:50%; border:2.5px solid #2A3550; border-top-color:#5B9BD5; animation:spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .auth-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; }
-  #userBadge { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  #userBadge { margin-bottom:14px; }
+  .identity-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+  .identity-name { font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:15px; margin-bottom:6px; }
+  .identity-meta-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .role-pill { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; padding:3px 9px; border-radius:9999px; }
   .badge-btn { background:transparent; border:1px solid var(--border-soft); color:var(--muted); border-radius:8px; padding:4px 10px; font-size:11px; cursor:pointer; font-family:inherit; }
   .wrap { max-width: 560px; margin: 0 auto; padding: 24px 16px 100px; }
   .header-row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:4px; }
@@ -179,6 +183,7 @@
 </div>
 
 <script src="firebase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js';
 import {
@@ -458,24 +463,40 @@ function renderUserBadge() {
   if (!el) return;
   if (publicMode) {
     el.innerHTML =
-      '<span class="dim" style="font-size:11px;">Public status board · read-only</span>' +
-      '<span style="margin-left:auto;"><button type="button" id="loginFromPublicBtn" class="badge-btn">Log in to report</button></span>';
+      '<div class="identity-card"><div class="identity-name">Public status board</div>' +
+      '<div class="identity-meta-row"><span class="dim" style="font-size:12px;">Read-only \u2014 no account</span>' +
+      '<span style="margin-left:auto;"><button type="button" id="loginFromPublicBtn" class="badge-btn">Log in to report</button></span></div></div>';
     document.getElementById('loginFromPublicBtn').addEventListener('click', exitPublicMode);
     return;
   }
   if (!currentUser) return;
-  const roleLabels = { admin: 'Admin', maintainer: 'Maintainer', supervisor: 'Supervisor', reporter: 'Reporter' };
+  const roleMeta = {
+    admin: { label: 'Admin', color: '#F2A93C' },
+    maintainer: { label: 'Maintainer', color: '#5B9BD5' },
+    supervisor: { label: 'Supervisor', color: '#4FB477' },
+    reporter: { label: 'RA', color: '#8B96AD' },
+  };
+  const rm = roleMeta[currentRole] || { label: currentRole, color: '#8B96AD' };
   let extra = '';
-  if (isMaintainerRole()) extra = ' · ' + specialtyLabel(currentSpecialty);
-  else if (currentRole === 'reporter' && currentAssignedBlocks.length) extra = ' · RA: ' + currentAssignedBlocks.join(', ');
+  if (isMaintainerRole()) extra = specialtyLabel(currentSpecialty);
+  else if (currentRole === 'reporter' && currentAssignedBlocks.length) extra = 'RA: ' + currentAssignedBlocks.join(', ');
+
   el.innerHTML =
-    '<span class="dim" style="font-size:11px;">' + escapeHtml(currentName || currentUser.email) + ' · ' + (roleLabels[currentRole] || currentRole) + escapeHtml(extra) + '</span>' +
-    '<span style="margin-left:auto;display:flex;gap:8px;">' +
-      (isAdminRole() ? '<button type="button" id="manageBtn" class="badge-btn">Manage</button>' : '') +
-      (canSeeOversight() ? '<button type="button" id="summaryBtn" class="badge-btn">Summary</button>' : '') +
-      '<button type="button" id="logoutBtn" class="badge-btn">Log out</button>' +
-    '</span>';
+    '<div class="identity-card">' +
+      '<div class="identity-name">' + escapeHtml(currentName || currentUser.email) + '</div>' +
+      '<div class="identity-meta-row">' +
+        '<span class="role-pill" style="background:' + rm.color + '22;color:' + rm.color + ';border:1px solid ' + rm.color + '55;">' + escapeHtml(rm.label) + '</span>' +
+        (extra ? '<span class="dim" style="font-size:11px;">' + escapeHtml(extra) + '</span>' : '') +
+        '<span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">' +
+          (isAdminRole() ? '<button type="button" id="manageBtn" class="badge-btn">Manage</button>' : '') +
+          (canSeeOversight() ? '<button type="button" id="summaryBtn" class="badge-btn">Summary</button>' : '') +
+          '<button type="button" id="exportMineBtn" class="badge-btn">Export</button>' +
+          '<button type="button" id="logoutBtn" class="badge-btn">Log out</button>' +
+        '</span>' +
+      '</div>' +
+    '</div>';
   document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+  document.getElementById('exportMineBtn').addEventListener('click', () => downloadWorkbook(tickets, currentRole || 'export'));
   if (isAdminRole()) document.getElementById('manageBtn').addEventListener('click', openAdmin);
   if (canSeeOversight()) document.getElementById('summaryBtn').addEventListener('click', openSummary);
 }
@@ -1172,8 +1193,9 @@ async function handleCreateStaff() {
     updateAdminError();
   }
 }
+const ROLE_LABELS = { admin: 'Admin', maintainer: 'Maintainer', supervisor: 'Supervisor', reporter: 'RA' };
 const ROLE_OPTIONS = [
-  { id: 'reporter', label: 'Reporter' },
+  { id: 'reporter', label: 'RA' },
   { id: 'maintainer', label: 'Maintainer' },
   { id: 'supervisor', label: 'Supervisor' },
   { id: 'admin', label: 'Admin' },
@@ -1188,7 +1210,7 @@ function renderUserRow(u) {
   let html = '<div class="user-row-wrap">' +
     '<button type="button" class="user-row" data-edit-user="' + u.id + '">' +
       '<span>' + escapeHtml(u.name || u.email) + '<br><span class="dim" style="font-size:11px;">' + escapeHtml(u.email) + (extra ? ' · ' + escapeHtml(extra) : '') + '</span></span>' +
-      '<span class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(u.role) + (isEditing ? ' ▾' : ' ▸') + '</span>' +
+      '<span class="mono" style="font-size:11px;color:var(--muted);">' + escapeHtml(ROLE_LABELS[u.role] || u.role) + (isEditing ? ' ▾' : ' ▸') + '</span>' +
     '</button>';
   if (isEditing) html += renderUserEditor(u);
   html += '</div>';
@@ -1288,37 +1310,37 @@ function buildSummary() {
       '<option value="__all__">All locations</option>' +
       BLOCK_GROUPS.map(g => '<optgroup label="' + escapeHtml(g.label) + '">' + g.options.map(b => '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + '</option>').join('') + '</optgroup>').join('') +
     '</select>' +
-    '<button type="button" id="exportBtn" class="submit-btn" style="background:#5B9BD5;">Download CSV</button>';
+    '<button type="button" id="exportBtn" class="submit-btn" style="background:#5B9BD5;">Download Excel</button>';
 
   document.getElementById('closeSummaryBtn').addEventListener('click', closeSummary);
   document.getElementById('exportBtn').addEventListener('click', handleExport);
 }
-function csvEscape(v) {
-  const s = String(v == null ? '' : v);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-function ticketsToCsv(list) {
+function ticketsToWorkbook(list) {
   const headers = ['Code','Location','Room','Category','Description','Status','Urgent','Reported By','Reported At','Resolved At','Notes'];
   const rows = list.map(t => [
-    t.code, t.block, t.room, categoryMeta(t.category).label, t.description,
-    statusMeta(t.status).label, t.urgent ? 'Yes' : 'No', t.reportedBy, t.reportedAt, t.resolvedAt || '',
+    t.code || '', t.block || '', t.room || '', categoryMeta(t.category).label, t.description || '',
+    statusMeta(t.status).label, t.urgent ? 'Yes' : 'No', t.reportedBy || '', t.reportedAt || '', t.resolvedAt || '',
     (Array.isArray(t.notes) ? t.notes.map(n => (n.byName + ': ' + n.text)).join(' | ') : ''),
-  ].map(csvEscape).join(','));
-  return [headers.join(','), ...rows].join('\r\n');
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 8 }, { wch: 12 }, { wch: 36 }, { wch: 12 }, { wch: 7 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 40 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Tickets');
+  return wb;
+}
+function downloadWorkbook(list, filenameHint) {
+  if (typeof XLSX === 'undefined') {
+    errorMsg = 'Could not load the Excel export library. Check your connection and try again.';
+    render();
+    return;
+  }
+  const wb = ticketsToWorkbook(list);
+  XLSX.writeFile(wb, 'bmf-log-' + filenameHint.replace(/\s+/g, '-').toLowerCase() + '-' + new Date().toISOString().slice(0, 10) + '.xlsx');
 }
 function handleExport() {
   const sel = document.getElementById('exportBlockSelect').value;
   const list = sel === '__all__' ? tickets : tickets.filter(t => t.block === sel);
-  const csv = ticketsToCsv(list);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'bmf-log-' + (sel === '__all__' ? 'all' : sel.replace(/\s+/g, '-').toLowerCase()) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadWorkbook(list, sel === '__all__' ? 'all' : sel);
 }
 
 // ---------- Event delegation ----------
