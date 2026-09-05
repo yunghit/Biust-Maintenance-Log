@@ -1,0 +1,55 @@
+export const BLOCK_GROUPS = [
+  { label: 'BPC', options: ['BPC'] },
+  { label: 'Numbered Blocks', options: ['1', '2', '3', '4', '5', '6'] },
+  { label: 'Lettered Blocks', options: ['A', 'B', 'C', 'D', 'E', 'F'] },
+  { label: 'Sekgoma', options: ['Sekgoma 1', 'Sekgoma 2', 'Sekgoma 3', 'Sekgoma 4'] },
+  { label: 'Fengyue', options: ['Fengyue 1', 'Fengyue 2', 'Fengyue 3', 'Fengyue 4'] },
+  { label: 'Main Halls', options: ['Old Main Boys', 'Old Main Girls', 'New Main Boys', 'New Main Girls'] },
+  { label: 'Campus Facilities', options: ['Student Center', 'Admin', 'Engineering Block', 'Science Block', 'Primary', 'Refectory'] },
+];
+export const BLOCKS = BLOCK_GROUPS.flatMap((g) => g.options);
+export const RESIDENTIAL_BLOCKS = BLOCK_GROUPS.filter((g) => g.label !== 'Campus Facilities').flatMap((g) => g.options);
+export const FACILITIES_GROUP = BLOCK_GROUPS.find((g) => g.label === 'Campus Facilities');
+
+export const CATEGORIES = [
+  { id: 'electricity', label: 'Electricity', icon: '⚡' },
+  { id: 'plumbing', label: 'Plumbing', icon: '💧' },
+  { id: 'furniture', label: 'Carpentry', icon: '🔨' },
+  { id: 'access', label: 'Access/Other', icon: '🔑' },
+  { id: 'transport', label: 'Transport', icon: '🚌' },
+  { id: 'wifi', label: 'WiFi', icon: '📶' },
+  { id: 'inventory', label: 'Inventory', icon: '📦' },
+];
+
+export const SPECIALTIES = [
+  { id: 'all', label: 'All categories' },
+  { id: 'electricity', label: 'Electricity' },
+  { id: 'plumbing', label: 'Plumbing' },
+  { id: 'furniture', label: 'Carpentry' },
+  { id: 'access', label: 'Access/Other' },
+  { id: 'transport', label: 'Transport' },
+  { id: 'wifi', label: 'WiFi' },
+  { id: 'inventory', label: 'Inventory' },
+];
+
+export const STATUSES = [
+  { id: 'pending', label: 'Pending', color: '#F2A93C' },
+  { id: 'in_progress', label: 'In progress', color: '#5B9BD5' },
+  { id: 'no_access', label: 'No access', color: '#E15554' },
+  { id: 'done', label: 'Done', color: '#4FB477' },
+];
+
+export const ROLE_OPTIONS = [
+  { id: 'reporter', label: 'RA' },
+  { id: 'maintainer', label: 'Maintainer' },
+  { id: 'supervisor', label: 'Supervisor' },
+  { id: 'admin', label: 'Admin' },
+];
+export const ROLE_META = {
+  admin: { label: 'Admin', color: '#F2A93C' },
+  maintainer: { label: 'Maintainer', color: '#5B9BD5' },
+  supervisor: { label: 'Supervisor', color: '#4FB477' },
+  reporter: { label: 'RA', color: '#8B96AD' },
+};
+
+export const ARCHIVE_MS = 7 * 24 * 60 * 60 * 1000;
